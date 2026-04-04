@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Verification | MediBridge AI Ultra</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo-section">
+            <div class="logo-icon"><i class="fa-solid fa-microchip"></i></div>
+            <h2 class="logo-text">MediBridge</h2>
+        </div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html"><i class="fa-solid fa-house-chimney-medical"></i> <span>Dashboard</span></a></li>
+            <li><a href="doctor-verification.html" class="active"><i class="fa-solid fa-user-doctor"></i> <span>Doctors</span></a></li>
+            <li><a href="student-verification.html"><i class="fa-solid fa-user-graduate"></i> <span>Students</span></a></li>
+            <li><a href="analytics.html"><i class="fa-solid fa-chart-pie"></i> <span>Intelligence</span></a></li>
+            <li><a href="heatmap.html"><i class="fa-solid fa-satellite-dish"></i> <span>Heatmap</span></a></li>
+            <li><a href="alerts.html"><i class="fa-solid fa-shield-virus"></i> <span>Crisis Alerts</span></a></li>
+        </ul>
+        <div class="logout-container">
+            <button id="logout-btn" class="logout-btn"><i class="fa-solid fa-lock"></i> <span>Secure Logout</span></button>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div>
+                <h1>Practitioner Verification</h1>
+                <p class="subtitle">Validating medical credentials against national medical registry.</p>
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <input type="text" id="search-input" class="search-bar" placeholder="Search by name, ID or specialty..." style="margin-bottom: 0;">
+                <button class="card" style="padding: 10px 20px; border-radius: 12px; font-weight: 600; font-size: 0.9rem; cursor: pointer;"><i class="fa-solid fa-file-export"></i> Export Batch</button>
+            </div>
+        </header>
+
+        <section class="card table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Practitioner</th>
+                        <th>Credential ID</th>
+                        <th>Specialization</th>
+                        <th>Verification Status</th>
+                        <th>System Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <div class="user-cell">
+                                <div class="user-avatar" style="background: linear-gradient(135deg, #3b82f6, #06b6d4);">SJ</div>
+                                <div>
+                                    <p style="font-weight: 600;">Dr. Sarah Jenkins</p>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted);">sarah.j@mednet.gov</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td><code style="background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 5px;">MC-892341</code></td>
+                        <td>Cardiology</td>
+                        <td><span class="badge pending">Awaiting Validation</span></td>
+                        <td>
+                            <button class="card action-btn" style="background: var(--emerald); color: white; border: none; padding: 8px 15px;" onclick="updateStatus(this, 'Approved')"><i class="fa-solid fa-check"></i> Approve</button>
+                            <button class="card action-btn" style="background: var(--rose); color: white; border: none; padding: 8px 15px;" onclick="updateStatus(this, 'Rejected')"><i class="fa-solid fa-xmark"></i> Reject</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="user-cell">
+                                <div class="user-avatar" style="background: linear-gradient(135deg, #8b5cf6, #f43f5e);">MC</div>
+                                <div>
+                                    <p style="font-weight: 600;">Dr. Michael Chen</p>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted);">m.chen@hospital.io</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td><code style="background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 5px;">MC-771209</code></td>
+                        <td>Pediatrics</td>
+                        <td><span class="badge pending">Awaiting Validation</span></td>
+                        <td>
+                            <button class="card action-btn" style="background: var(--emerald); color: white; border: none; padding: 8px 15px;" onclick="updateStatus(this, 'Approved')"><i class="fa-solid fa-check"></i> Approve</button>
+                            <button class="card action-btn" style="background: var(--rose); color: white; border: none; padding: 8px 15px;" onclick="updateStatus(this, 'Rejected')"><i class="fa-solid fa-xmark"></i> Reject</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="user-cell">
+                                <div class="user-avatar" style="background: var(--accent-gradient);">AS</div>
+                                <div>
+                                    <p style="font-weight: 600;">Dr. Anita Sharma</p>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted);">anita.s@gov.health</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td><code style="background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 5px;">MC-110293</code></td>
+                        <td>General Medicine</td>
+                        <td><span class="badge approved">Identity Verified</span></td>
+                        <td><span style="color: var(--text-muted); font-size: 0.85rem;"><i class="fa-solid fa-check-double"></i> Verified</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+    <script>
+    document.getElementById('logout-btn')?.addEventListener('click', function() {
+        localStorage.removeItem('adminLoggedIn');
+        window.location.href = 'index.html';
+    });
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
