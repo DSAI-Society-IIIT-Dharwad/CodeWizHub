@@ -7,5 +7,5 @@ class AppwriteConfig {
   static const String studentsCollection = 'students';
   static const String consultationsCollection = 'consultations';
   static const String uploadsCollection = 'uploads'; // ← NEW
-  static const String apiKey = 'standard_986ff6425985217bdd8942d640879ccbfd9f21a4a2d34dded1e5713ae7ed0898e746fbabd36047fa918f765d99f56b3f061b8b9066f4747333da17a571a021398a3d1e61c172153d60858f6eacd86f6f3454ae58fb45fe2cfb1b0118e39efdcebcdd1b69c57897598e8ef4a07d2c59e0adbe77e05cdf590c165b5802d2919ba4';
+  static const String apiKey = 'API_Key(No for you)';
 }
