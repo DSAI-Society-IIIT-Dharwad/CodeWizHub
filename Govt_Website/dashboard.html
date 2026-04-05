@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | MediBridge AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Appwrite SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.0/dist/umd/sdk.min.js"></script>
+    <style>
+        .main-content { opacity: 1 !important; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 25px; margin-bottom: 40px; }
+        .recent-list { display: flex; flex-direction: column; gap: 15px; }
+        .recent-item { padding: 15px; background: rgba(255,255,255,0.03); border-radius: 15px; border-left: 4px solid var(--primary); }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo-section"><div class="logo-icon"><i class="fa-solid fa-microchip"></i></div><h2 class="logo-text">MediBridge</h2></div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html" class="active"><i class="fa-solid fa-house-chimney-medical"></i> <span>Dashboard</span></a></li>
+            <li><a href="doctor-verification.html"><i class="fa-solid fa-user-doctor"></i> <span>Doctors</span></a></li>
+            <li><a href="student-verification.html"><i class="fa-solid fa-user-graduate"></i> <span>Students</span></a></li>
+            <li><a href="analytics.html"><i class="fa-solid fa-chart-pie"></i> <span>Intelligence</span></a></li>
+            <li><a href="heatmap.html"><i class="fa-solid fa-satellite-dish"></i> <span>Heatmap</span></a></li>
+            <li><a href="alerts.html"><i class="fa-solid fa-shield-virus"></i> <span>Crisis Alerts</span></a></li>
+        </ul>
+        <div class="logout-container"><button id="logout-btn" class="logout-btn"><i class="fa-solid fa-lock"></i> <span>Secure Logout</span></button></div>
+    </nav>
+
+    <main class="main-content" style="opacity: 1;">
+        <header><div><h1>Government Intelligence Portal</h1><p class="subtitle">Real-time verification statistics</p></div></header>
+
+        <div class="stats-grid">
+            <div class="card stat-card purple"><div class="icon-box"><i class="fa-solid fa-stethoscope"></i></div><h3>Doctor Applications</h3><div class="value" id="doctorApps">--</div><div>Pending: <span id="doctorPending">--</span></div></div>
+            <div class="card stat-card blue"><div class="icon-box"><i class="fa-solid fa-user-check"></i></div><h3>Verified Doctors</h3><div class="value" id="verifiedDoctors">--</div></div>
+            <div class="card stat-card cyan"><div class="icon-box"><i class="fa-solid fa-user-graduate"></i></div><h3>Student Applications</h3><div class="value" id="studentApps">--</div><div>Pending: <span id="studentPending">--</span></div></div>
+            <div class="card stat-card rose"><div class="icon-box"><i class="fa-solid fa-graduation-cap"></i></div><h3>Verified Students</h3><div class="value" id="verifiedStudents">--</div></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 25px;">
+            <section class="card"><h3>Recent Doctor Applications</h3><div id="recentDoctors" class="recent-list"><i class="fa-solid fa-spinner fa-spin"></i> Loading from Appwrite...</div></section>
+            <section class="card"><h3>Recent Student Applications</h3><div id="recentStudents" class="recent-list"><i class="fa-solid fa-spinner fa-spin"></i> Loading from Appwrite...</div></section>
+        </div>
+    </main>
+
+    <script src="appwrite-config.js"></script>
+    <script>
+        if (!localStorage.getItem('adminLoggedIn')) window.location.href = 'admin-login.html';
+
+        async function loadDashboard() {
+            try {
+                // Load doctor requests
+                const doctorRequests = await appwriteService.getDocuments('doctor_requests');
+                const pendingDoctors = doctorRequests.filter(d => d.status === 'pending').length;
+                document.getElementById('doctorApps').innerText = doctorRequests.length;
+                document.getElementById('doctorPending').innerText = pendingDoctors;
+                
+                // Load verified doctors
+                const doctors = await appwriteService.getDocuments('doctors');
+                document.getElementById('verifiedDoctors').innerText = doctors.length;
+                
+                // Load student requests
+                const studentRequests = await appwriteService.getDocuments('student_requests');
+                const pendingStudents = studentRequests.filter(s => s.status === 'pending').length;
+                document.getElementById('studentApps').innerText = studentRequests.length;
+                document.getElementById('studentPending').innerText = pendingStudents;
+                
+                // Load verified students
+                const students = await appwriteService.getDocuments('students');
+                document.getElementById('verifiedStudents').innerText = students.length;
+                
+                // Recent doctor applications
+                const recentDocs = [...doctorRequests].reverse().slice(0, 5);
+                document.getElementById('recentDoctors').innerHTML = recentDocs.length ? recentDocs.map(d => `
+                    <div class="recent-item">
+                        <strong>${d.name || 'N/A'}</strong><br>
+                        <small>${d.specialization || 'N/A'} | ${d.submittedAt ? new Date(d.submittedAt).toLocaleDateString() : 'N/A'}</small><br>
+                        <span class="badge ${d.status || 'pending'}">${d.status || 'pending'}</span>
+                    </div>
+                `).join('') : '<p>No doctor applications in database</p>';
+                
+                // Recent student applications
+                const recentStudents = [...studentRequests].reverse().slice(0, 5);
+                document.getElementById('recentStudents').innerHTML = recentStudents.length ? recentStudents.map(s => `
+                    <div class="recent-item">
+                        <strong>${s.name || 'N/A'}</strong><br>
+                        <small>${s.college || 'N/A'} | ${s.submittedAt ? new Date(s.submittedAt).toLocaleDateString() : 'N/A'}</small><br>
+                        <span class="badge ${s.status || 'pending'}">${s.status || 'pending'}</span>
+                    </div>
+                `).join('') : '<p>No student applications in database</p>';
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.getElementById('recentDoctors').innerHTML = '<p style="color: var(--rose);">Error loading from Appwrite. Check configuration.</p>';
+                document.getElementById('recentStudents').innerHTML = '<p style="color: var(--rose);">Error loading from Appwrite. Check configuration.</p>';
+            }
+        }
+        
+        document.getElementById('logout-btn')?.addEventListener('click', () => {
+            localStorage.removeItem('adminLoggedIn');
+            window.location.href = 'index.html';
+        });
+        
+        loadDashboard();
+        setInterval(loadDashboard, 5000);
+    </script>
+</body>
+</html>

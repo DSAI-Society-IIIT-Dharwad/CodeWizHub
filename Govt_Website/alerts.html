@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crisis Alerts | MediBridge AI Ultra</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- Appwrite SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.0/dist/umd/sdk.min.js"></script>
+    <style>
+        .main-content { opacity: 1 !important; }
+        .alert-card {
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        .alert-card:hover {
+            transform: translateX(5px);
+        }
+        .severity-critical { border-left-color: #f43f5e !important; }
+        .severity-high { border-left-color: #f59e0b !important; }
+        .severity-moderate { border-left-color: #06b6d4 !important; }
+        .severity-low { border-left-color: #10b981 !important; }
+        .response-btn {
+            transition: all 0.3s ease;
+        }
+        .response-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+        .alert-filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .filter-chip {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+        .filter-chip:hover, .filter-chip.active {
+            background: var(--accent-gradient);
+            border-color: transparent;
+        }
+        @keyframes alertPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .critical-alert {
+            animation: alertPulse 1s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- Complete Sidebar -->
+    <nav class="sidebar">
+        <div class="logo-section">
+            <div class="logo-icon"><i class="fa-solid fa-microchip"></i></div>
+            <h2 class="logo-text">MediBridge</h2>
+        </div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html"><i class="fa-solid fa-house-chimney-medical"></i> <span>Dashboard</span></a></li>
+            <li><a href="doctor-verification.html"><i class="fa-solid fa-user-doctor"></i> <span>Doctors</span></a></li>
+            <li><a href="student-verification.html"><i class="fa-solid fa-user-graduate"></i> <span>Students</span></a></li>
+            <li><a href="analytics.html"><i class="fa-solid fa-chart-pie"></i> <span>Intelligence</span></a></li>
+            <li><a href="heatmap.html"><i class="fa-solid fa-satellite-dish"></i> <span>Heatmap</span></a></li>
+            <li><a href="alerts.html" class="active"><i class="fa-solid fa-shield-virus"></i> <span>Crisis Alerts</span></a></li>
+        </ul>
+        <div class="logout-container">
+            <button id="logout-btn" class="logout-btn"><i class="fa-solid fa-lock"></i> <span>Secure Logout</span></button>
+        </div>
+    </nav>
+
+    <main class="main-content" style="opacity: 1;">
+        <header>
+            <div>
+                <h1>Crisis Response Center</h1>
+                <p class="subtitle">High-priority alerts requiring immediate government mobilization.</p>
+            </div>
+            <div class="card" style="padding: 10px 20px; border-radius: 12px;">
+                <i class="fa-solid fa-bell" style="color: var(--amber);"></i>
+                <span style="margin-left: 8px;" id="alertCount">0</span>
+                <span style="margin-left: 5px;">Active Alerts</span>
+            </div>
+        </header>
+
+        <div class="alert-filters">
+            <div class="filter-chip active" data-filter="all">All Alerts</div>
+            <div class="filter-chip" data-filter="critical">Critical</div>
+            <div class="filter-chip" data-filter="high">High</div>
+            <div class="filter-chip" data-filter="moderate">Moderate</div>
+            <div class="filter-chip" data-filter="low">Low</div>
+        </div>
+
+        <section class="alert-list" id="alertList">
+            <!-- Will be populated by JavaScript -->
+            <div class="card" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading alerts...</div>
+        </section>
+
+        <div class="card" style="margin-top: 20px; background: rgba(6, 182, 212, 0.05); border-color: var(--secondary);">
+            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: space-between;">
+                <div>
+                    <i class="fa-solid fa-robot" style="color: var(--secondary); font-size: 1.5rem;"></i>
+                    <strong style="margin-left: 10px;">AI Early Warning System</strong>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Machine learning models are continuously monitoring health data across 28 states.</p>
+                </div>
+                <button class="card" style="background: var(--secondary); color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer;" onclick="showToast('AI scan initiated', 'info')">
+                    <i class="fa-solid fa-microchip"></i> Run Predictive Scan
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Auth check
+        (function() {
+            if (!localStorage.getItem('adminLoggedIn')) {
+                window.location.href = 'admin-login.html';
+            }
+        })();
+
+        // Alert data
+        let alerts = [
+            { 
+                id: 1,
+                title: "Dengue Hemorrhagic Fever Outbreak", 
+                location: "Bangalore Urban, Karnataka",
+                severity: "critical", 
+                description: "AI Vector Analysis predicts 45% growth in next 24 hours. 342 confirmed cases reported in last week. Hospital beds at 78% capacity.", 
+                icon: "fa-biohazard", 
+                buttonText: "Deploy Emergency Response",
+                action: "deploy_response",
+                timestamp: "2024-01-15T08:30:00",
+                disease: "Dengue",
+                cases: 342,
+                trend: "↑ 45%"
+            },
+            { 
+                id: 2,
+                title: "Seasonal Influenza Warning", 
+                location: "Delhi NCR",
+                severity: "high", 
+                description: "Pediatric centers at 85% capacity. 1,200+ cases reported this week. Public health advisory dissemination recommended.", 
+                icon: "fa-wind", 
+                buttonText: "Issue Public Advisory",
+                action: "issue_advisory",
+                timestamp: "2024-01-14T14:15:00",
+                disease: "Influenza A",
+                cases: 1245,
+                trend: "↑ 28%"
+            },
+            { 
+                id: 3,
+                title: "Cholera Risk Detected", 
+                location: "Mumbai South, Maharashtra",
+                severity: "critical", 
+                description: "Water contamination detected in 3 municipal supply nodes. 67 suspected cases. Emergency medical camps and water purification required.", 
+                icon: "fa-droplet-slash", 
+                buttonText: "Initialize Medical Camps",
+                action: "deploy_camps",
+                timestamp: "2024-01-15T06:45:00",
+                disease: "Cholera",
+                cases: 67,
+                trend: "↑ 120%"
+            },
+            { 
+                id: 4,
+                title: "Malaria Spike Alert", 
+                location: "Northeast Districts",
+                severity: "high", 
+                description: "Vector density increased by 60% post-monsoon. 234 cases in last 14 days. Larvicidal spraying recommended.", 
+                icon: "fa-mosquito", 
+                buttonText: "Deploy Vector Control",
+                action: "deploy_control",
+                timestamp: "2024-01-13T10:00:00",
+                disease: "Malaria",
+                cases: 234,
+                trend: "↑ 35%"
+            },
+            { 
+                id: 5,
+                title: "Acute Respiratory Illness Cluster", 
+                location: "Chennai, Tamil Nadu",
+                severity: "moderate", 
+                description: "Cluster detected in industrial area. Air quality monitoring recommended. 89 cases reported.", 
+                icon: "fa-lungs", 
+                buttonText: "Investigate Cluster",
+                action: "investigate",
+                timestamp: "2024-01-14T16:20:00",
+                disease: "Respiratory Illness",
+                cases: 89,
+                trend: "↑ 15%"
+            },
+            { 
+                id: 6,
+                title: "Zika Virus Surveillance", 
+                location: "Jaipur, Rajasthan",
+                severity: "low", 
+                description: "3 confirmed cases. Enhanced surveillance and mosquito control measures activated.", 
+                icon: "fa-shield-virus", 
+                buttonText: "Monitor Situation",
+                action: "monitor",
+                timestamp: "2024-01-12T09:00:00",
+                disease: "Zika Virus",
+                cases: 3,
+                trend: "Stable"
+            }
+        ];
+
+        let currentFilter = 'all';
+
+        function getSeverityClass(severity) {
+            switch(severity) {
+                case 'critical': return 'severity-critical';
+                case 'high': return 'severity-high';
+                case 'moderate': return 'severity-moderate';
+                default: return 'severity-low';
+            }
+        }
+
+        function getSeverityColor(severity) {
+            switch(severity) {
+                case 'critical': return '#f43f5e';
+                case 'high': return '#f59e0b';
+                case 'moderate': return '#06b6d4';
+                default: return '#10b981';
+            }
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffHours = Math.floor((now - date) / (1000 * 60 * 60));
+            if (diffHours < 1) return 'Just now';
+            if (diffHours < 24) return `${diffHours} hours ago`;
+            return `${Math.floor(diffHours / 24)} days ago`;
+        }
+
+        function handleAlertAction(action, alertTitle) {
+            let message = '';
+            switch(action) {
+                case 'deploy_response':
+                    message = `🚨 Emergency response team dispatched for: ${alertTitle}`;
+                    break;
+                case 'issue_advisory':
+                    message = `📢 Public health advisory issued for: ${alertTitle}`;
+                    break;
+                case 'deploy_camps':
+                    message = `🏥 Medical camps initialized for: ${alertTitle}`;
+                    break;
+                case 'deploy_control':
+                    message = `🦟 Vector control teams deployed for: ${alertTitle}`;
+                    break;
+                case 'investigate':
+                    message = `🔬 Investigation team dispatched for: ${alertTitle}`;
+                    break;
+                default:
+                    message = `✅ Action taken for: ${alertTitle}`;
+            }
+            showToast(message, 'success');
+            
+            // Log action (in production, this would go to Appwrite)
+            console.log(`Action ${action} taken for alert: ${alertTitle} at ${new Date().toISOString()}`);
+        }
+
+        function showToast(message, type) {
+            const container = document.getElementById('toast-container') || (() => {
+                const c = document.createElement('div');
+                c.id = 'toast-container';
+                c.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 10000;';
+                document.body.appendChild(c);
+                return c;
+            })();
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            const icon = type === 'success' ? 'fa-circle-check' : 'fa-info-circle';
+            const color = type === 'success' ? '#10b981' : '#06b6d4';
+            toast.style.cssText = `
+                background: var(--glass-bg);
+                backdrop-filter: blur(10px);
+                padding: 12px 20px;
+                border-radius: 12px;
+                margin-bottom: 10px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                animation: slideIn 0.3s forwards;
+                border: 1px solid var(--glass-border);
+            `;
+            toast.innerHTML = `<i class="fa-solid ${icon}" style="color: ${color}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function renderAlerts() {
+            const container = document.getElementById('alertList');
+            let filteredAlerts = alerts;
+            
+            if (currentFilter !== 'all') {
+                filteredAlerts = alerts.filter(a => a.severity === currentFilter);
+            }
+            
+            if (filteredAlerts.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center;">No alerts found for selected filter</div>';
+                document.getElementById('alertCount').innerText = '0';
+                return;
+            }
+            
+            document.getElementById('alertCount').innerText = filteredAlerts.length;
+            
+            container.innerHTML = filteredAlerts.map(alert => `
+                <div class="card alert-card ${getSeverityClass(alert.severity)} ${alert.severity === 'critical' ? 'critical-alert' : ''}" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; border-left: 6px solid ${getSeverityColor(alert.severity)};">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
+                            <h3 style="color: ${getSeverityColor(alert.severity)}; margin: 0;">
+                                <i class="fa-solid ${alert.icon}"></i> ${alert.title}
+                            </h3>
+                            <span class="badge ${alert.severity === 'critical' ? 'rejected' : (alert.severity === 'high' ? 'pending' : 'approved')}" style="font-size: 0.7rem;">
+                                ${alert.severity.toUpperCase()}
+                            </span>
+                        </div>
+                        <p style="color: var(--text-muted); margin-bottom: 8px;">
+                            <i class="fa-solid fa-location-dot"></i> ${alert.location}
+                        </p>
+                        <p style="color: var(--text-muted); margin-bottom: 12px; max-width: 600px;">${alert.description}</p>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap; font-size: 0.8rem;">
+                            <span><i class="fa-solid fa-chart-line"></i> Trend: ${alert.trend}</span>
+                            <span><i class="fa-solid fa-virus"></i> ${alert.cases} confirmed cases</span>
+                            <span><i class="fa-regular fa-clock"></i> ${formatTime(alert.timestamp)}</span>
+                        </div>
+                    </div>
+                    <button class="card response-btn" style="background: ${getSeverityColor(alert.severity)}; color: white; border: none; padding: 12px 25px; font-weight: 700; cursor: pointer; white-space: nowrap;" onclick="handleAlertAction('${alert.action}', '${alert.title.replace(/'/g, "\\'")}')">
+                        <i class="fa-solid ${alert.severity === 'critical' ? 'fa-truck-fast' : 'fa-bullhorn'}"></i> ${alert.buttonText}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Filter functionality
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', function() {
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.filter;
+                renderAlerts();
+                
+                // Animate
+                if (typeof gsap !== 'undefined') {
+                    gsap.fromTo('.alert-card', 
+                        { opacity: 0, y: 20 },
+                        { opacity: 1, y: 0, duration: 0.4, stagger: 0.08 }
+                    );
+                }
+            });
+        });
+
+        // Logout functionality
+        document.getElementById('logout-btn')?.addEventListener('click', function() {
+            localStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('adminEmail');
+            window.location.href = 'index.html';
+        });
+
+        // Initial render
+        renderAlerts();
+        
+        // Animation on load
+        if (typeof gsap !== 'undefined') {
+            gsap.from('.alert-card', {
+                opacity: 0,
+                x: -30,
+                duration: 0.5,
+                stagger: 0.1,
+                delay: 0.2
+            });
+        }
+    </script>
+</body>
+</html>

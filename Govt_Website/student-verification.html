@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Verification | Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Add this before appwrite-config.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Appwrite SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.0/dist/umd/sdk.min.js"></script>
+    <style>
+        .main-content { opacity: 1 !important; }
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
+        .search-bar { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 20px; color: white; }
+        .status-filter { padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white; }
+        .action-btn { cursor: pointer; transition: all 0.3s; margin: 0 4px; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: var(--glass-bg); backdrop-filter: blur(10px); padding: 12px 20px; border-radius: 12px; z-index: 10000; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 10001; justify-content: center; align-items: center; }
+        .modal-content { background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 24px; padding: 30px; max-width: 500px; width: 90%; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo-section"><div class="logo-icon"><i class="fa-solid fa-microchip"></i></div><h2 class="logo-text">MediBridge</h2></div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html"><i class="fa-solid fa-house-chimney-medical"></i> <span>Dashboard</span></a></li>
+            <li><a href="doctor-verification.html"><i class="fa-solid fa-user-doctor"></i> <span>Doctors</span></a></li>
+            <li><a href="student-verification.html" class="active"><i class="fa-solid fa-user-graduate"></i> <span>Students</span></a></li>
+            <li><a href="analytics.html"><i class="fa-solid fa-chart-pie"></i> <span>Intelligence</span></a></li>
+            <li><a href="heatmap.html"><i class="fa-solid fa-satellite-dish"></i> <span>Heatmap</span></a></li>
+            <li><a href="alerts.html"><i class="fa-solid fa-shield-virus"></i> <span>Crisis Alerts</span></a></li>
+        </ul>
+        <div class="logout-container"><button id="logout-btn" class="logout-btn"><i class="fa-solid fa-lock"></i> <span>Secure Logout</span></button></div>
+    </nav>
+
+    <main class="main-content" style="opacity: 1;">
+        <header><div><h1>Student Verification Portal</h1><p class="subtitle">Review and verify medical student applications</p></div></header>
+
+        <div class="filter-bar">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Search by name, email, or college..." style="max-width: 300px; margin-bottom: 0;">
+            <select id="statusFilter" class="status-filter">
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <button class="card" style="padding: 10px 20px;" onclick="loadStudentRequests()"><i class="fa-solid fa-refresh"></i> Refresh</button>
+        </div>
+
+        <section class="card table-container">
+            <table style="width: 100%;">
+                <thead><tr><th>Student</th><th>Student ID</th><th>College</th><th>Course</th><th>Submitted</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody id="student-tbody"><tr><td colspan="7" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading applications...</td></tr></tbody>
+            </table>
+        </section>
+    </main>
+
+    <div id="viewModal" class="modal"><div class="modal-content"><h3>Application Details</h3><div id="modalBody"></div><button onclick="closeModal()" style="margin-top: 20px; padding: 10px 20px; background: var(--primary); border: none; border-radius: 8px; color: white; cursor: pointer;">Close</button></div></div>
+
+    <script>
+        if (!localStorage.getItem('adminLoggedIn')) window.location.href = 'admin-login.html';
+
+        let studentRequests = [];
+
+        function loadStudentRequests() {
+            const tbody = document.getElementById('student-tbody');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
+            
+            const stored = localStorage.getItem('student_requests');
+            studentRequests = stored ? JSON.parse(stored) : [];
+            
+            if (studentRequests.length === 0) {
+                studentRequests = [
+                    { $id: '1', name: 'James Anderson', email: 'j.anderson@oxford.edu', phoneNumber: '9876543212', studentId: 'ST-55612', college: 'Oxford Medical College', course: 'MBBS', year: '3rd Year', state: 'Delhi', status: 'pending', submittedAt: new Date().toISOString(), proofUrl: 'demo' },
+                    { $id: '2', name: 'Priya Patel', email: 'priya.p@health-inst.gov', phoneNumber: '9876543213', studentId: 'ST-99201', college: 'National Health Inst.', course: 'MD', year: 'Final Year', state: 'Karnataka', status: 'pending', submittedAt: new Date().toISOString(), proofUrl: 'demo' }
+                ];
+                localStorage.setItem('student_requests', JSON.stringify(studentRequests));
+            }
+            
+            renderStudentTable();
+        }
+
+        function renderStudentTable() {
+            const filter = document.getElementById('statusFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const tbody = document.getElementById('student-tbody');
+            
+            let filtered = studentRequests;
+            if (filter !== 'all') filtered = filtered.filter(s => s.status === filter);
+            if (search) filtered = filtered.filter(s => s.name.toLowerCase().includes(search) || s.email.toLowerCase().includes(search) || s.college.toLowerCase().includes(search));
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No student applications found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(student => `
+                <tr data-id="${student.$id}">
+                    <td><div class="user-cell"><div class="user-avatar">${student.name.split(' ').map(n=>n[0]).join('')}</div><div><strong>${student.name}</strong><br><small>${student.email}</small></div></div></td>
+                    <td><code>${student.studentId}</code></td>
+                    <td>${student.college}</td>
+                    <td>${student.course} (${student.year})</td>
+                    <td><small>${new Date(student.submittedAt).toLocaleDateString()}</small></td>
+                    <td><span class="badge ${student.status}">${student.status}</span></td>
+                    <td>${student.status === 'pending' ? `
+                        <button class="card action-btn" style="background: var(--emerald); color: white; border: none; padding: 8px 15px; margin-right: 8px;" onclick="approveStudent('${student.$id}')"><i class="fa-solid fa-check"></i> Approve</button>
+                        <button class="card action-btn" style="background: var(--rose); color: white; border: none; padding: 8px 15px;" onclick="rejectStudent('${student.$id}')"><i class="fa-solid fa-xmark"></i> Reject</button>
+                        <button class="card action-btn" style="background: var(--secondary); color: white; border: none; padding: 8px 15px; margin-left: 8px;" onclick="viewStudentDetails('${student.$id}')"><i class="fa-solid fa-eye"></i> View</button>
+                    ` : `<span><i class="fa-solid fa-check-double"></i> Processed</span>`}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function approveStudent(id) {
+    const student = studentRequests.find(s => s.$id === id);
+    if (!student) return;
+    
+    if (!confirm(`Approve ${student.name}? They will be added to verified students.`)) return;
+    
+    try {
+        // Add to students collection - MAKE SURE TO INCLUDE PASSWORD
+        const approvedStudent = {
+            studentId: student.studentId,
+            name: student.name,
+            email: student.email,
+            phoneNumber: student.phoneNumber,
+            college: student.college,
+            course: student.course,
+            year: student.year,
+            role: 'student',
+            isActive: true,
+            approvedAt: new Date().toISOString(),
+            approvedBy: localStorage.getItem('adminEmail') || 'admin@medibridge.ai',
+            password: student.password  // ← CRITICAL: Include the password from application
+        };
+        
+        console.log('Saving student with password:', approvedStudent.password ? 'Yes (hashed)' : 'No password!');
+        
+        await appwriteService.createDocument('students', approvedStudent);
+        
+        // Remove from requests (if using localStorage fallback)
+        const stored = localStorage.getItem('student_requests');
+        if (stored) {
+            let requests = JSON.parse(stored);
+            requests = requests.filter(s => s.$id !== id);
+            localStorage.setItem('student_requests', JSON.stringify(requests));
+        }
+        
+        // Also update in Appwrite
+        await appwriteService.updateDocument('student_requests', id, {
+            status: 'approved',
+            approvedAt: new Date().toISOString(),
+            approvedBy: localStorage.getItem('adminEmail') || 'admin@medibridge.ai'
+        });
+        
+        // Send approval email
+        const emailMessage = `Dear ${student.name},
+
+Congratulations! Your student verification application has been APPROVED!
+
+You can now log in to the MediBridge AI portal using:
+Email: ${student.email}
+Password: (the password you created during application)
+
+You can now access student resources and research portals.
+
+Best regards,
+MediBridge AI Team
+Ministry of Health & Family Welfare`;
+
+        await appwriteService.sendEmailNotification(
+            student.email, 
+            'Application Approved - MediBridge AI', 
+            emailMessage, 
+            'approved'
+        );
+        
+        showToast(`✅ ${student.name} approved! Email sent.`, 'success');
+        
+        // Reload the table
+        if (typeof loadStudentRequests === 'function') {
+            await loadStudentRequests();
+        } else {
+            location.reload();
+        }
+        
+    } catch (error) {
+        console.error('Error approving student:', error);
+        showToast('Error: ' + error.message, 'error');
+    }
+}
+
+        async function rejectStudent(id) {
+            const student = studentRequests.find(s => s.$id === id);
+            if (!student) return;
+            
+            if (!confirm(`Reject ${student.name}'s application?`)) return;
+            
+            try {
+                student.status = 'rejected';
+                student.rejectedAt = new Date().toISOString();
+                student.rejectedBy = localStorage.getItem('adminEmail') || 'admin@medibridge.ai';
+                
+                const index = studentRequests.findIndex(s => s.$id === id);
+                if (index !== -1) {
+                    studentRequests[index] = student;
+                    localStorage.setItem('student_requests', JSON.stringify(studentRequests));
+                }
+                
+                showToast(`${student.name}'s application has been rejected`, 'info');
+                renderStudentTable();
+                
+            } catch (error) {
+                console.error('Error rejecting student:', error);
+                showToast('Failed to reject student', 'error');
+            }
+        }
+
+        function viewStudentDetails(id) {
+            const student = studentRequests.find(s => s.$id === id);
+            if (!student) return;
+            
+            const modal = document.getElementById('viewModal');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalBody.innerHTML = `
+                <p><strong>Name:</strong> ${student.name}</p>
+                <p><strong>Email:</strong> ${student.email}</p>
+                <p><strong>Phone:</strong> ${student.phoneNumber}</p>
+                <p><strong>Student ID:</strong> ${student.studentId}</p>
+                <p><strong>College:</strong> ${student.college}</p>
+                <p><strong>Course:</strong> ${student.course}</p>
+                <p><strong>Year:</strong> ${student.year}</p>
+                <p><strong>State:</strong> ${student.state}</p>
+                <p><strong>Submitted:</strong> ${new Date(student.submittedAt).toLocaleString()}</p>
+                <p><strong>Proof Document:</strong> <a href="#" onclick="alert('Document viewing would open here')">View College ID</a></p>
+            `;
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('viewModal').style.display = 'none';
+        }
+
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-exclamation' : 'fa-info-circle')}" style="margin-right: 10px; color: ${type === 'success' ? '#10b981' : (type === 'error' ? '#f43f5e' : '#06b6d4')}"></i>${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        document.getElementById('searchInput')?.addEventListener('input', renderStudentTable);
+        document.getElementById('statusFilter')?.addEventListener('change', renderStudentTable);
+        document.getElementById('logout-btn')?.addEventListener('click', () => {
+            localStorage.removeItem('adminLoggedIn');
+            window.location.href = 'index.html';
+        });
+        
+        loadStudentRequests();
+    </script>
+</body>
+</html>

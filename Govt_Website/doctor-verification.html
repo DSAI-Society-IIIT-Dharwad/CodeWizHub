@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Verification | Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <style>
+        .main-content { opacity: 1 !important; }
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
+        .search-bar { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; padding: 10px 16px; color: white; flex: 1; max-width: 300px; }
+        .status-filter { padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white; }
+        .action-btn { cursor: pointer; transition: all 0.3s; margin: 0 4px; padding: 8px 15px; border-radius: 8px; border: none; font-weight: 600; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: rgba(15,23,42,0.95); backdrop-filter: blur(10px); padding: 12px 20px; border-radius: 12px; z-index: 10000; animation: slideIn 0.3s ease; border-left: 4px solid; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 10001; justify-content: center; align-items: center; }
+        .modal-content { background: rgba(15,23,42,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 30px; max-width: 500px; width: 90%; }
+        .rejection-reason { width: 100%; padding: 10px; margin: 10px 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: white; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo-section"><div class="logo-icon"><i class="fa-solid fa-microchip"></i></div><h2 class="logo-text">MediBridge</h2></div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html"><i class="fa-solid fa-house-chimney-medical"></i> <span>Dashboard</span></a></li>
+            <li><a href="doctor-verification.html" class="active"><i class="fa-solid fa-user-doctor"></i> <span>Doctors</span></a></li>
+            <li><a href="student-verification.html"><i class="fa-solid fa-user-graduate"></i> <span>Students</span></a></li>
+            <li><a href="analytics.html"><i class="fa-solid fa-chart-pie"></i> <span>Intelligence</span></a></li>
+            <li><a href="heatmap.html"><i class="fa-solid fa-satellite-dish"></i> <span>Heatmap</span></a></li>
+            <li><a href="alerts.html"><i class="fa-solid fa-shield-virus"></i> <span>Crisis Alerts</span></a></li>
+        </ul>
+        <div class="logout-container"><button id="logout-btn" class="logout-btn"><i class="fa-solid fa-lock"></i> <span>Secure Logout</span></button></div>
+    </nav>
+
+    <main class="main-content" style="opacity: 1; padding: 40px 60px;">
+        <header><div><h1>Doctor Verification Portal</h1><p class="subtitle">Review applications and send email notifications</p></div></header>
+
+        <div class="filter-bar">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Search by name, email, or Aadhar...">
+            <select id="statusFilter" class="status-filter">
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <button class="refresh-btn" style="padding: 10px 20px; background: var(--accent-gradient); border: none; border-radius: 12px; color: white; cursor: pointer;" onclick="loadDoctorRequests()"><i class="fa-solid fa-refresh"></i> Refresh</button>
+        </div>
+
+        <section class="card table-container">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead><tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+                    <th style="padding: 15px;">Doctor</th><th>Aadhar</th><th>Specialization</th><th>Submitted</th><th>Status</th><th>Actions</th>
+                 </tr></thead>
+                <tbody id="doctor-tbody"><tr><td colspan="6" style="padding: 40px; text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr></tbody>
+            </table>
+        </section>
+    </main>
+
+    <div id="rejectModal" class="modal">
+        <div class="modal-content">
+            <h3>Reject Application</h3>
+            <p>Please provide a reason for rejection:</p>
+            <textarea id="rejectionReason" class="rejection-reason" rows="4" placeholder="Enter rejection reason..."></textarea>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button onclick="confirmRejection()" style="background: #f43f5e; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Confirm Rejection</button>
+                <button onclick="closeRejectModal()" style="background: #334155; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="appwrite-config.js"></script>
+    <script>
+        if (!localStorage.getItem('adminLoggedIn')) window.location.href = 'admin-login.html';
+
+        let doctorRequests = [];
+        let currentRejectId = null;
+
+        async function loadDoctorRequests() {
+            const tbody = document.getElementById('doctor-tbody');
+            tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
+            
+            try {
+                doctorRequests = await appwriteService.getDocuments('doctor_requests');
+                console.log('Loaded requests:', doctorRequests.length);
+                renderTable();
+            } catch (error) {
+                console.error('Load error:', error);
+                tbody.innerHTML = `<tr><td colspan="6" style="padding: 40px; text-align: center; color: #f43f5e;">Error: ${error.message}</td></tr>`;
+            }
+        }
+
+        function renderTable() {
+            const filter = document.getElementById('statusFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = doctorRequests;
+            
+            if (filter !== 'all') filtered = filtered.filter(d => d.status === filter);
+            if (search) filtered = filtered.filter(d => 
+                d.name?.toLowerCase().includes(search) || 
+                d.email?.toLowerCase().includes(search) || 
+                d.aadharNumber?.includes(search)
+            );
+            
+            const tbody = document.getElementById('doctor-tbody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center;">No applications found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(doc => `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <td style="padding: 15px;"><div><strong>${doc.name}</strong><br><small>${doc.email}</small></div></td>
+                    <td style="padding: 15px;"><code>${doc.aadharNumber || 'N/A'}</code></td>
+                    <td style="padding: 15px;">${doc.specialization}</td>
+                    <td style="padding: 15px;"><small>${doc.submittedAt ? new Date(doc.submittedAt).toLocaleDateString() : 'N/A'}</small></td>
+                    <td style="padding: 15px;"><span class="badge ${doc.status}">${doc.status}</span></td>
+                    <td style="padding: 15px;">
+                        ${doc.status === 'pending' ? `
+                            <button class="action-btn" style="background: #10b981; color: white;" onclick="approveDoctor('${doc.$id}')"><i class="fa-solid fa-check"></i> Approve</button>
+                            <button class="action-btn" style="background: #f43f5e; color: white;" onclick="openRejectModal('${doc.$id}')"><i class="fa-solid fa-xmark"></i> Reject</button>
+                        ` : `<span style="color: #94a3b8;"><i class="fa-solid fa-check-double"></i> Processed</span>`}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function approveDoctor(id) {
+            const doctor = doctorRequests.find(d => d.$id === id);
+            if (!doctor) return;
+            
+            if (!doctor.password) {
+                showToast('❌ This application has no password. Please ask user to re-apply.', 'error');
+                return;
+            }
+            
+            if (!confirm(`Approve Dr. ${doctor.name}? They will receive an email notification.`)) return;
+            
+            try {
+                // Step 1: Add to doctors collection
+                const approvedDoctor = {
+                    doctorId: doctor.aadharNumber,
+                    name: doctor.name,
+                    email: doctor.email,
+                    phoneNumber: doctor.phoneNumber,
+                    specialization: doctor.specialization,
+                    role: 'doctor',
+                    isActive: true,
+                    approvedAt: new Date().toISOString(),
+                    password: doctor.password
+                };
+                
+                console.log('Creating doctor document...');
+                await appwriteService.createDocument('doctors', approvedDoctor);
+                console.log('✅ Doctor saved to database');
+                
+                // Step 2: Send email FIRST (before update that might fail)
+                console.log('📧 Sending approval email...');
+                const emailMessage = `Dear Dr. ${doctor.name},\n\nCongratulations! Your verification application has been APPROVED!\n\nYou can now log in to the MediBridge AI portal using:\nEmail: ${doctor.email}\nPassword: (the password you created during application)\n\nThank you for joining India's national healthcare network.\n\nBest regards,\nMediBridge AI Team`;
+                
+                const emailResult = await appwriteService.sendEmailNotification(
+                    doctor.email, 
+                    'Application Approved - MediBridge AI', 
+                    emailMessage, 
+                    'approved'
+                );
+                
+                if (emailResult.success) {
+                    console.log('✅ Email sent successfully!');
+                    showToast(`✅ Dr. ${doctor.name} approved! Email sent.`, 'success');
+                } else {
+                    console.log('⚠️ Email failed but doctor was saved');
+                    showToast(`⚠️ Dr. ${doctor.name} approved but email failed`, 'warning');
+                }
+                
+                // Step 3: Try to update status (don't let it block)
+                try {
+                    await appwriteService.updateDocument('doctor_requests', id, {
+                        status: 'approved'
+                    });
+                    console.log('✅ Request status updated');
+                } catch (updateError) {
+                    console.log('⚠️ Could not update status, but doctor is approved');
+                }
+                
+                await loadDoctorRequests();
+                
+            } catch (error) {
+                console.error('Error approving doctor:', error);
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        function openRejectModal(id) {
+            currentRejectId = id;
+            document.getElementById('rejectModal').style.display = 'flex';
+        }
+
+        async function confirmRejection() {
+            const reason = document.getElementById('rejectionReason').value;
+            if (!reason) {
+                showToast('Please provide a rejection reason', 'error');
+                return;
+            }
+            
+            const doctor = doctorRequests.find(d => d.$id === currentRejectId);
+            if (!confirm(`Reject ${doctor.name}? They will receive an email with the rejection reason.`)) return;
+            
+            try {
+                // Send rejection email first
+                const emailMessage = `Dear Dr. ${doctor.name},\n\nThank you for your interest in MediBridge AI.\n\nAfter careful review, your verification application has been REJECTED for the following reason(s):\n\n${reason}\n\nIf you believe this is an error or would like to reapply, please contact our support team.\n\nThank you,\nMediBridge AI Team`;
+                
+                await appwriteService.sendEmailNotification(doctor.email, 'Application Update - MediBridge AI', emailMessage, 'rejected');
+                
+                // Then update status
+                await appwriteService.updateDocument('doctor_requests', currentRejectId, {
+                    status: 'rejected',
+                    rejectionReason: reason,
+                    rejectedAt: new Date().toISOString()
+                });
+                
+                showToast(`❌ Dr. ${doctor.name} rejected. Email sent.`, 'info');
+                closeRejectModal();
+                await loadDoctorRequests();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        function closeRejectModal() {
+            document.getElementById('rejectModal').style.display = 'none';
+            document.getElementById('rejectionReason').value = '';
+            currentRejectId = null;
+        }
+
+        function showToast(msg, type) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = type === 'success' ? '#10b981' : type === 'error' ? '#f43f5e' : '#06b6d4';
+            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        document.getElementById('searchInput')?.addEventListener('input', renderTable);
+        document.getElementById('statusFilter')?.addEventListener('change', renderTable);
+        document.getElementById('logout-btn')?.addEventListener('click', () => {
+            localStorage.removeItem('adminLoggedIn');
+            window.location.href = 'index.html';
+        });
+        
+        loadDoctorRequests();
+    </script>
+</body>
+</html>

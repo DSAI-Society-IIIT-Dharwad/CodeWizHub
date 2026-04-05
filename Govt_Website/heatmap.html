@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satellite Heatmap | MediBridge AI Ultra</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- Appwrite SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.0/dist/umd/sdk.min.js"></script>
+    <style>
+        .main-content { opacity: 1 !important; }
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+        .region-box {
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .region-box:hover {
+            transform: translateY(-5px) scale(1.02);
+        }
+        .risk-critical {
+            border-color: #f43f5e !important;
+            background: linear-gradient(135deg, rgba(244,63,94,0.15), rgba(244,63,94,0.05)) !important;
+            box-shadow: 0 0 20px rgba(244,63,94,0.2);
+        }
+        .risk-high {
+            border-color: #f59e0b !important;
+            background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.03)) !important;
+        }
+        .risk-moderate {
+            border-color: #06b6d4 !important;
+            background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(6,182,212,0.02)) !important;
+        }
+        .risk-low {
+            border-color: var(--glass-border) !important;
+        }
+        @media (max-width: 1024px) {
+            .heatmap-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 768px) {
+            .heatmap-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 480px) {
+            .heatmap-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(244,63,94,0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(244,63,94,0); }
+            100% { box-shadow: 0 0 0 0 rgba(244,63,94,0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Complete Sidebar -->
+    <nav class="sidebar">
+        <div class="logo-section">
+            <div class="logo-icon"><i class="fa-solid fa-microchip"></i></div>
+            <h2 class="logo-text">MediBridge</h2>
+        </div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html"><i class="fa-solid fa-house-chimney-medical"></i> <span>Dashboard</span></a></li>
+            <li><a href="doctor-verification.html"><i class="fa-solid fa-user-doctor"></i> <span>Doctors</span></a></li>
+            <li><a href="student-verification.html"><i class="fa-solid fa-user-graduate"></i> <span>Students</span></a></li>
+            <li><a href="analytics.html"><i class="fa-solid fa-chart-pie"></i> <span>Intelligence</span></a></li>
+            <li><a href="heatmap.html" class="active"><i class="fa-solid fa-satellite-dish"></i> <span>Heatmap</span></a></li>
+            <li><a href="alerts.html"><i class="fa-solid fa-shield-virus"></i> <span>Crisis Alerts</span></a></li>
+        </ul>
+        <div class="logout-container">
+            <button id="logout-btn" class="logout-btn"><i class="fa-solid fa-lock"></i> <span>Secure Logout</span></button>
+        </div>
+    </nav>
+
+    <main class="main-content" style="opacity: 1;">
+        <header>
+            <div>
+                <h1>Geographical Risk Assessment</h1>
+                <p class="subtitle">Live satellite-linked vector mapping of high-density risk zones.</p>
+            </div>
+            <div class="card" style="padding: 10px 20px; display: flex; align-items: center; gap: 15px; border-radius: 12px;">
+                <i class="fa-solid fa-satellite" style="color: var(--secondary);"></i>
+                <span style="font-size: 0.8rem; font-weight: 600;">Last Updated:</span>
+                <span style="color: var(--secondary);" id="last-updated">Just now</span>
+            </div>
+        </header>
+
+        <section class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+                <h3>Active Grid Projection - National Risk Assessment</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div class="badge approved" style="background: rgba(16, 185, 129, 0.1);">Low Risk</div>
+                    <div class="badge pending" style="background: rgba(6, 182, 212, 0.1);">Moderate Risk</div>
+                    <div class="badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">High Risk</div>
+                    <div class="badge rejected" style="background: rgba(244, 63, 94, 0.1);">Critical</div>
+                </div>
+            </div>
+
+            <div class="heatmap-grid" id="heatmapGrid">
+                <!-- Will be populated by JavaScript -->
+                <div style="text-align: center; grid-column: span 4;"><i class="fa-solid fa-spinner fa-spin"></i> Loading heatmap data...</div>
+            </div>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--glass-border);">
+                <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+                    <i class="fa-solid fa-chart-line"></i> Risk levels calculated using AI analysis of anonymized patient data, weather patterns, and historical outbreak trends.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Auth check
+        (function() {
+            if (!localStorage.getItem('adminLoggedIn')) {
+                window.location.href = 'admin-login.html';
+            }
+        })();
+
+        // Region data
+        const regions = [
+            { name: 'North Delhi', zone: 'A1', risk: 'moderate', icon: 'fa-temperature-arrow-up', disease: 'Seasonal Flu', cases: 145 },
+            { name: 'South Delhi', zone: 'A2', risk: 'low', icon: 'fa-shield-halved', disease: 'Stable', cases: 32 },
+            { name: 'East Delhi', zone: 'A3', risk: 'low', icon: 'fa-shield-halved', disease: 'Stable', cases: 28 },
+            { name: 'Central Delhi', zone: 'B1', risk: 'critical', icon: 'fa-biohazard', disease: 'Dengue Outbreak', cases: 342 },
+            { name: 'Mumbai North', zone: 'B2', risk: 'high', icon: 'fa-droplet-slash', disease: 'Cholera Risk', cases: 187 },
+            { name: 'Mumbai South', zone: 'C1', risk: 'critical', icon: 'fa-radiation', disease: 'Malaria', cases: 423 },
+            { name: 'Bangalore', zone: 'C2', risk: 'high', icon: 'fa-virus', disease: 'Dengue', cases: 267 },
+            { name: 'Chennai', zone: 'C3', risk: 'moderate', icon: 'fa-lungs', disease: 'Respiratory', cases: 98 },
+            { name: 'Kolkata', zone: 'D1', risk: 'moderate', icon: 'fa-temperature-arrow-up', disease: 'Seasonal Flu', cases: 112 },
+            { name: 'Hyderabad', zone: 'D2', risk: 'low', icon: 'fa-shield-halved', disease: 'Stable', cases: 45 },
+            { name: 'Pune', zone: 'E1', risk: 'high', icon: 'fa-biohazard', disease: 'Dengue', cases: 203 },
+            { name: 'Ahmedabad', zone: 'E2', risk: 'low', icon: 'fa-shield-halved', disease: 'Stable', cases: 37 }
+        ];
+
+        function getRiskClass(risk) {
+            switch(risk) {
+                case 'critical': return 'risk-critical pulse-animation';
+                case 'high': return 'risk-high';
+                case 'moderate': return 'risk-moderate';
+                default: return 'risk-low';
+            }
+        }
+
+        function getRiskBadge(risk) {
+            switch(risk) {
+                case 'critical': return 'rejected';
+                case 'high': return 'pending';
+                case 'moderate': return '';
+                default: return 'approved';
+            }
+        }
+
+        function renderHeatmap() {
+            const grid = document.getElementById('heatmapGrid');
+            grid.innerHTML = regions.map(region => `
+                <div class="card region-box ${getRiskClass(region.risk)}" onclick="showRegionDetails('${region.name}', '${region.disease}', ${region.cases}, '${region.risk}')" style="cursor: pointer;">
+                    <i class="fa-solid ${region.icon}" style="font-size: 1.8rem; margin-bottom: 12px; color: ${region.risk === 'critical' ? '#f43f5e' : (region.risk === 'high' ? '#f59e0b' : (region.risk === 'moderate' ? '#06b6d4' : '#94a3b8'))}"></i>
+                    <p style="font-weight: 800; font-size: 1.1rem;">${region.name}</p>
+                    <p style="font-size: 0.7rem; color: var(--text-muted); margin: 5px 0;">Zone ${region.zone}</p>
+                    <span class="badge ${getRiskBadge(region.risk)}" style="font-size: 0.7rem; margin-top: 8px; display: inline-block;">
+                        ${region.risk.toUpperCase()} RISK
+                    </span>
+                    <p style="font-size: 0.75rem; margin-top: 8px;">
+                        <i class="fa-solid fa-chart-simple"></i> ${region.cases} cases
+                    </p>
+                </div>
+            `).join('');
+        }
+
+        function showRegionDetails(name, disease, cases, risk) {
+            const riskColor = risk === 'critical' ? '#f43f5e' : (risk === 'high' ? '#f59e0b' : (risk === 'moderate' ? '#06b6d4' : '#10b981'));
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: var(--glass-bg);
+                backdrop-filter: blur(20px);
+                padding: 16px 24px;
+                border-radius: 16px;
+                border-left: 4px solid ${riskColor};
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+                max-width: 350px;
+            `;
+            toast.innerHTML = `
+                <h4 style="margin-bottom: 8px;">${name}</h4>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">Disease: <strong style="color: ${riskColor}">${disease}</strong></p>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">Active Cases: <strong>${cases}</strong></p>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">Risk Level: <strong style="color: ${riskColor}">${risk.toUpperCase()}</strong></p>
+                <button onclick="this.parentElement.remove()" style="margin-top: 10px; padding: 6px 12px; background: var(--primary); border: none; border-radius: 8px; color: white; cursor: pointer;">Close</button>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        // Update timestamp
+        document.getElementById('last-updated').innerHTML = new Date().toLocaleTimeString();
+
+        // Logout functionality
+        document.getElementById('logout-btn')?.addEventListener('click', function() {
+            localStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('adminEmail');
+            window.location.href = 'index.html';
+        });
+
+        // Animation on load
+        document.addEventListener('DOMContentLoaded', () => {
+            renderHeatmap();
+            if (typeof gsap !== 'undefined') {
+                gsap.from('.region-box', {
+                    opacity: 0,
+                    y: 30,
+                    duration: 0.5,
+                    stagger: 0.05,
+                    ease: "back.out(1.2)"
+                });
+            }
+        });
+    </script>
+</body>
+</html>
