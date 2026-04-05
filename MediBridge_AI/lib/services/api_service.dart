@@ -1,6 +1,6 @@
 class ApiService {
 
-  // 🔴 REPLACE THESE WITH YOUR FRIEND'S VALUES
+  // 🔴 THERE IS NO API HERE, HA HA
 
   static const String endpoint = "https://sgp.cloud.appwrite.io/v1";
 
