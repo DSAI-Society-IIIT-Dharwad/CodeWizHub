@@ -43,7 +43,7 @@ class _ConsultationDetailScreenState extends State<ConsultationDetailScreen>
   bool _govtDone = false;
   bool _studentsDone = false;
 
-  static const String _geminiKey = 'YOUR_GEMINI_API_KEY';
+  static const String _geminiKey = 'API_Key(No for you)';
 
   final List<String> _languages = [
     'English', 'Hindi', 'Kannada', 'Tamil',
